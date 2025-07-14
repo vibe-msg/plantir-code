@@ -3,6 +3,7 @@ import { Bus } from "../bus"
 import { File } from "../file"
 import { Session } from "../session"
 import { Log } from "../util/log"
+import { plantirExtensionConfigHooks } from "../plantir-extension/config/hooks"
 import { Config } from "./config"
 import path from "path"
 
@@ -48,5 +49,7 @@ export namespace ConfigHooks {
         }
       }
     })
+
+    plantirExtensionConfigHooks({ app, log })
   }
 }

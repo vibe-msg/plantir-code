@@ -162,6 +162,13 @@ export namespace Config {
                 })
                 .array()
                 .optional(),
+              pre_send_message: z
+                .object({
+                  command: z.string().array(),
+                  environment: z.record(z.string(), z.string()).optional(),
+                })
+                .array()
+                .optional(),
             })
             .optional(),
         })

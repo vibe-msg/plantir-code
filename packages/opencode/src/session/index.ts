@@ -38,6 +38,7 @@ import { MessageV2 } from "./message-v2"
 import { Mode } from "./mode"
 import { LSP } from "../lsp"
 import { ReadTool } from "../tool/read"
+import { PlantirEvent, preSendMessageHook } from "../plantir-extension/session"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
@@ -108,6 +109,7 @@ export namespace Session {
         error: MessageV2.Assistant.shape.error,
       }),
     ),
+    ...PlantirEvent,
   }
 
   const state = App.state(
@@ -291,6 +293,8 @@ export namespace Session {
   }) {
     const l = log.clone().tag("session", input.sessionID)
     l.info("chatting")
+
+    await preSendMessageHook({ input })
 
     const model = await Provider.getModel(input.providerID, input.modelID)
     let msgs = await messages(input.sessionID)
