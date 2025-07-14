@@ -30,7 +30,7 @@ func (cg *filesContextGroup) GetEmptyMessage() string {
 func (cg *filesContextGroup) getGitFiles() []dialog.CompletionItemI {
 	t := theme.CurrentTheme()
 	items := make([]dialog.CompletionItemI, 0)
-	base := styles.NewStyle().Background(t.BackgroundElement())
+	base := styles.NewStyle().Background(t.BackgroundPanel())
 	green := base.Foreground(t.Success()).Render
 	red := base.Foreground(t.Error()).Render
 
@@ -54,7 +54,9 @@ func (cg *filesContextGroup) getGitFiles() []dialog.CompletionItemI {
 				Value:      file.Path,
 				ProviderID: cg.GetId(),
 				Raw:        file,
-			})
+			},
+				dialog.WithBackgroundColor(t.BackgroundPanel()),
+			)
 			items = append(items, item)
 		}
 	}
@@ -100,7 +102,9 @@ func (cg *filesContextGroup) GetChildEntries(
 				Value:      file,
 				ProviderID: cg.GetId(),
 				Raw:        file,
-			})
+			},
+				dialog.WithBackgroundColor(theme.CurrentTheme().BackgroundPanel()),
+			)
 			items = append(items, item)
 		}
 	}
