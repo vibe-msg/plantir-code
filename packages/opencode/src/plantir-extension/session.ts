@@ -29,7 +29,7 @@ export const preSendMessageHook = async ({ input }: {
     providerID: string
     modelID: string
     mode?: string
-    parts: MessageV2.UserPart[]
+    parts: (MessageV2.TextPart | MessageV2.FilePart)[]
   }
 }) => {
   const textPart = input.parts.find((p) => p.type === "text")
