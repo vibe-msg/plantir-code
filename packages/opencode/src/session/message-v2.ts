@@ -1,6 +1,5 @@
 import z from "zod"
 import { Bus } from "../bus"
-import { Provider } from "../provider/provider"
 import { NamedError } from "../util/error"
 import { Message } from "./message"
 import { convertToModelMessages, type ModelMessage, type UIMessage } from "ai"
@@ -9,6 +8,13 @@ import { Identifier } from "../id/id"
 export namespace MessageV2 {
   export const OutputLengthError = NamedError.create("MessageOutputLengthError", z.object({}))
   export const AbortedError = NamedError.create("MessageAbortedError", z.object({}))
+  export const AuthError = NamedError.create(
+    "ProviderAuthError",
+    z.object({
+      providerID: z.string(),
+      message: z.string(),
+    }),
+  )
 
   export const ToolStatePending = z
     .object({
@@ -77,6 +83,11 @@ export namespace MessageV2 {
     id: z.string(),
     sessionID: z.string(),
     messageID: z.string(),
+  })
+
+  export const SnapshotPart = PartBase.extend({
+    type: z.literal("snapshot"),
+    snapshot: z.string(),
   })
 
   export const TextPart = PartBase.extend({
@@ -154,7 +165,7 @@ export namespace MessageV2 {
   export type User = z.infer<typeof User>
 
   export const Part = z
-    .discriminatedUnion("type", [TextPart, FilePart, ToolPart, StepStartPart, StepFinishPart])
+    .discriminatedUnion("type", [TextPart, FilePart, ToolPart, StepStartPart, StepFinishPart, SnapshotPart])
     .openapi({
       ref: "Part",
     })
@@ -168,7 +179,7 @@ export namespace MessageV2 {
     }),
     error: z
       .discriminatedUnion("name", [
-        Provider.AuthError.Schema,
+        AuthError.Schema,
         NamedError.Unknown.Schema,
         OutputLengthError.Schema,
         AbortedError.Schema,

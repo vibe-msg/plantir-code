@@ -34,13 +34,13 @@ type CompletionItemI interface {
 	GetRaw() any
 }
 
-func (ci *CompletionItem) Render(selected bool, width int) string {
+func (ci *CompletionItem) Render(selected bool, width int, isFirstInViewport bool) string {
 	t := theme.CurrentTheme()
 	baseStyle := styles.NewStyle().Foreground(t.Text())
 
 	truncatedStr := truncate.String(string(ci.DisplayValue()), uint(width-4))
 
-	backgroundColor := t.BackgroundElement()
+	backgroundColor := t.BackgroundPanel()
 	if ci.backgroundColor != nil {
 		backgroundColor = *ci.backgroundColor
 	}
@@ -73,6 +73,10 @@ func (ci *CompletionItem) GetRaw() any {
 	return ci.Raw
 }
 
+func (ci *CompletionItem) Selectable() bool {
+	return true
+}
+
 type CompletionItemOption func(*CompletionItem)
 
 func WithBackgroundColor(color compat.AdaptiveColor) CompletionItemOption {
@@ -81,7 +85,10 @@ func WithBackgroundColor(color compat.AdaptiveColor) CompletionItemOption {
 	}
 }
 
-func NewCompletionItem(completionItem CompletionItem, opts ...CompletionItemOption) CompletionItemI {
+func NewCompletionItem(
+	completionItem CompletionItem,
+	opts ...CompletionItemOption,
+) CompletionItemI {
 	for _, opt := range opts {
 		opt(&completionItem)
 	}
@@ -132,7 +139,7 @@ var completionDialogKeys = completionDialogKeyMap{
 		key.WithKeys("tab", "enter", "right"),
 	),
 	Cancel: key.NewBinding(
-		key.WithKeys(" ", "esc", "backspace", "ctrl+c"),
+		key.WithKeys(" ", "esc", "backspace", "ctrl+h", "ctrl+c"),
 	),
 }
 
@@ -223,7 +230,7 @@ func (c *completionDialogComponent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				width := lipgloss.Width(value)
 				triggerWidth := lipgloss.Width(c.trigger)
 				// Only close on backspace when there are no characters left, unless we're back to just the trigger
-				if msg.String() != "backspace" || (width <= triggerWidth && value != c.trigger) {
+				if (msg.String() != "backspace" && msg.String() != "ctrl+h") || (width <= triggerWidth && value != c.trigger) {
 					return c, c.close()
 				}
 			}
