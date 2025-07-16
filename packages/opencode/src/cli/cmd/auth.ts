@@ -275,6 +275,26 @@ export const AuthLoginCommand = cmd({
       key,
     })
 
+    const sandbox = await prompts.select({
+      message: "Select Sandbox",
+      options: [
+        {
+          label: "none",
+          value: 0,
+        },
+        {
+          label: "docker",
+          value: 1,
+        },
+        {
+          label: "podman",
+          value: 2,
+        },
+      ],
+    })
+    // TODO: 샌드박스 선택값 사용하도록 처리
+    console.log(sandbox)
+
     prompts.outro("Done")
   },
 })
