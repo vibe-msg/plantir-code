@@ -280,20 +280,25 @@ export const AuthLoginCommand = cmd({
       options: [
         {
           label: "none",
-          value: 0,
+          value: "0",
         },
         {
           label: "docker",
-          value: 1,
+          value: "1",
         },
         {
           label: "podman",
-          value: 2,
+          value: "2",
         },
       ],
     })
-    // TODO: 샌드박스 선택값 사용하도록 처리
-    console.log(sandbox)
+
+    if (prompts.isCancel(sandbox)) throw new UI.CancelledError()
+
+    await Auth.set(sandbox, {
+      type: "sandbox",
+      key: "sandbox",
+    })
 
     prompts.outro("Done")
   },
