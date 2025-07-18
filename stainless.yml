@@ -49,12 +49,15 @@ resources:
     models:
       app: App
       logLevel: LogLevel
+      provider: Provider
+      model: Model
       mode: Mode
     methods:
       get: get /app
       init: post /app/init
       log: post /log
       modes: get /mode
+      providers: get /config/providers
 
   find:
     models:
@@ -75,14 +78,13 @@ resources:
   config:
     models:
       config: Config
-      keybinds: KeybindsConfig
-      mcpLocal: McpLocalConfig
-      mcpRemote: McpRemoteConfig
-      provider: Provider
-      model: Model
+      keybindsConfig: KeybindsConfig
+      mcpLocalConfig: McpLocalConfig
+      mcpRemoteConfig: McpRemoteConfig
+      modeConfig: ModeConfig
+      layoutConfig: LayoutConfig
     methods:
       get: get /config
-      providers: get /config/providers
 
   session:
     models:
@@ -94,10 +96,9 @@ resources:
       toolPart: ToolPart
       stepStartPart: StepStartPart
       stepFinishPart: StepFinishPart
+      snapshotPart: SnapshotPart
       assistantMessage: AssistantMessage
-      assistantMessagePart: AssistantMessagePart
       userMessage: UserMessage
-      userMessagePart: UserMessagePart
       toolStatePending: ToolStatePending
       toolStateRunning: ToolStateRunning
       toolStateCompleted: ToolStateCompleted
@@ -126,9 +127,13 @@ readme:
   example_requests:
     default:
       type: request
-      endpoint: get /event
+      endpoint: get /session
       params: {}
     headline:
+      type: request
+      endpoint: get /session
+      params: {}
+    streaming:
       type: request
       endpoint: get /event
       params: {}

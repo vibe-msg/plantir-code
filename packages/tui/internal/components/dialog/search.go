@@ -17,17 +17,23 @@ type SearchQueryChangedMsg struct {
 
 // SearchSelectionMsg is emitted when an item is selected
 type SearchSelectionMsg struct {
-	Item  interface{}
+	Item  any
 	Index int
 }
 
 // SearchCancelledMsg is emitted when the search is cancelled
 type SearchCancelledMsg struct{}
 
+// SearchRemoveItemMsg is emitted when Ctrl+X is pressed to remove an item
+type SearchRemoveItemMsg struct {
+	Item  any
+	Index int
+}
+
 // SearchDialog is a reusable component that combines a text input with a list
 type SearchDialog struct {
 	textInput textinput.Model
-	list      list.List[list.ListItem]
+	list      list.List[list.Item]
 	width     int
 	height    int
 	focused   bool
@@ -38,6 +44,7 @@ type searchKeyMap struct {
 	Down   key.Binding
 	Enter  key.Binding
 	Escape key.Binding
+	Remove key.Binding
 }
 
 var searchKeys = searchKeyMap{
@@ -57,10 +64,14 @@ var searchKeys = searchKeyMap{
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "cancel"),
 	),
+	Remove: key.NewBinding(
+		key.WithKeys("ctrl+x"),
+		key.WithHelp("ctrl+x", "remove from recent"),
+	),
 }
 
 // NewSearchDialog creates a new SearchDialog
-func NewSearchDialog(placeholder string, maxVisibleItems int) *SearchDialog {
+func NewSearchDialog(placeholder string, maxVisibleHeight int) *SearchDialog {
 	t := theme.CurrentTheme()
 	bgColor := t.BackgroundElement()
 	textColor := t.Text()
@@ -95,10 +106,18 @@ func NewSearchDialog(placeholder string, maxVisibleItems int) *SearchDialog {
 	ti.Focus()
 
 	emptyList := list.NewListComponent(
-		[]list.ListItem{},
-		maxVisibleItems,
-		" No items",
-		false,
+		list.WithItems([]list.Item{}),
+		list.WithMaxVisibleHeight[list.Item](maxVisibleHeight),
+		list.WithFallbackMessage[list.Item](" No items"),
+		list.WithAlphaNumericKeys[list.Item](false),
+		list.WithRenderFunc(
+			func(item list.Item, selected bool, width int, baseStyle styles.Style) string {
+				return item.Render(selected, width, baseStyle)
+			},
+		),
+		list.WithSelectableFunc(func(item list.Item) bool {
+			return item.Selectable()
+		}),
 	)
 
 	return &SearchDialog{
@@ -134,16 +153,23 @@ func (s *SearchDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return s, func() tea.Msg { return SearchCancelledMsg{} }
 
 		case key.Matches(msg, searchKeys.Enter):
-			if selectedItem, idx := s.list.GetSelectedItem(); selectedItem != nil {
+			if selectedItem, idx := s.list.GetSelectedItem(); idx != -1 {
 				return s, func() tea.Msg {
 					return SearchSelectionMsg{Item: selectedItem, Index: idx}
+				}
+			}
+
+		case key.Matches(msg, searchKeys.Remove):
+			if selectedItem, idx := s.list.GetSelectedItem(); idx != -1 {
+				return s, func() tea.Msg {
+					return SearchRemoveItemMsg{Item: selectedItem, Index: idx}
 				}
 			}
 
 		case key.Matches(msg, searchKeys.Up):
 			var cmd tea.Cmd
 			listModel, cmd := s.list.Update(msg)
-			s.list = listModel.(list.List[list.ListItem])
+			s.list = listModel.(list.List[list.Item])
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
@@ -151,7 +177,7 @@ func (s *SearchDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, searchKeys.Down):
 			var cmd tea.Cmd
 			listModel, cmd := s.list.Update(msg)
-			s.list = listModel.(list.List[list.ListItem])
+			s.list = listModel.(list.List[list.Item])
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
@@ -177,7 +203,7 @@ func (s *SearchDialog) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (s *SearchDialog) View() string {
 	s.list.SetMaxWidth(s.width)
 	listView := s.list.View()
-	listView = lipgloss.PlaceVertical(s.list.GetMaxVisibleItems(), lipgloss.Top, listView)
+	listView = lipgloss.PlaceVertical(s.list.GetMaxVisibleHeight(), lipgloss.Top, listView)
 	textinput := s.textInput.View()
 	return textinput + "\n\n" + listView
 }
@@ -194,7 +220,7 @@ func (s *SearchDialog) SetHeight(height int) {
 }
 
 // SetItems updates the list items
-func (s *SearchDialog) SetItems(items []list.ListItem) {
+func (s *SearchDialog) SetItems(items []list.Item) {
 	s.list.SetItems(items)
 }
 

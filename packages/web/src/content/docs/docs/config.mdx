@@ -5,12 +5,11 @@ description: Using the opencode JSON config.
 
 You can configure opencode using a JSON config file.
 
-```json title="opencode config"
+```json title="opencode.json"
 {
   "$schema": "https://opencode.ai/config.json",
   "theme": "opencode",
   "model": "anthropic/claude-sonnet-4-20250514",
-  "autoshare": false,
   "autoupdate": true
 }
 ```
@@ -93,6 +92,24 @@ You can configure the theme you want to use in your opencode config through the 
 
 ---
 
+### Layout
+
+You can configure the layout of the TUI with the `layout` option.
+
+```json title="opencode.json"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "layout": "stretch"
+}
+```
+
+This takes:
+
+- `"auto"`: Centers content with padding. This is the default.
+- `"stretch"`: Uses full terminal width.
+
+---
+
 ### Logging
 
 Logs are written to:
@@ -118,8 +135,28 @@ With the following options:
 | `WARN`  | Warnings and errors only                 |
 | `ERROR` | Errors only                              |
 
-The **default** log level is `INFO`. If you are running opencode locally in
-development mode it's set to `DEBUG`.
+The **default** log level is `INFO`. If you are running opencode locally in development mode it's set to `DEBUG`.
+
+---
+
+### Sharing
+
+You can configure the [share](/docs/share) feature through the `share` option.
+
+```json title="opencode.json"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "share": "manual"
+}
+```
+
+This takes:
+
+- `"manual"` - Allow manual sharing via commands (default)
+- `"auto"` - Automatically share new conversations
+- `"disabled"` - Disable sharing entirely
+
+By default, sharing is set to manual mode where you need to explicitly share conversations using the `/share` command.
 
 ---
 
@@ -138,6 +175,19 @@ You can customize your keybinds through the `keybinds` option.
 
 ---
 
+### Autoupdate
+
+opencode will automatically download any new updates when it starts up. You can disable this with the `autoupdate` option.
+
+```json title="opencode.json"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": false
+}
+```
+
+---
+
 ### MCP servers
 
 You can configure MCP servers you want to use through the `mcp` option.
@@ -150,6 +200,22 @@ You can configure MCP servers you want to use through the `mcp` option.
 ```
 
 [Learn more here](/docs/mcp-servers).
+
+---
+
+### Instructions
+
+You can configure the instructions for the model you're using through the `instructions` option.
+
+```json title="opencode.json"
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
+}
+```
+
+This takes an array of paths and glob patterns to instruction files. [Learn more
+about rules here](/docs/rules).
 
 ---
 
@@ -188,7 +254,9 @@ Use `{env:VARIABLE_NAME}` to substitute environment variables:
   "model": "{env:OPENCODE_MODEL}",
   "provider": {
     "anthropic": {
-      "api_key": "{env:ANTHROPIC_API_KEY}"
+      "options": {
+        "apiKey": "{env:ANTHROPIC_API_KEY}"
+      }
     }
   }
 }
@@ -208,7 +276,9 @@ Use `{file:path/to/file}` to substitute the contents of a file:
   "instructions": ["{file:./custom-instructions.md}"],
   "provider": {
     "openai": {
-      "api_key": "{file:~/.secrets/openai-key}"
+      "options": {
+        "apiKey": "{file:~/.secrets/openai-key}"
+      }
     }
   }
 }

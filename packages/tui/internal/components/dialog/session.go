@@ -28,17 +28,26 @@ type SessionDialog interface {
 type sessionItem struct {
 	title              string
 	isDeleteConfirming bool
+	isCurrentSession   bool
 }
 
-func (s sessionItem) Render(selected bool, width int, isFirstInViewport bool) string {
+func (s sessionItem) Render(
+	selected bool,
+	width int,
+	isFirstInViewport bool,
+	baseStyle styles.Style,
+) string {
 	t := theme.CurrentTheme()
-	baseStyle := styles.NewStyle()
 
 	var text string
 	if s.isDeleteConfirming {
 		text = "Press again to confirm delete"
 	} else {
-		text = s.title
+		if s.isCurrentSession {
+			text = "● " + s.title
+		} else {
+			text = s.title
+		}
 	}
 
 	truncatedStr := truncate.StringWithTail(text, uint(width-1), "...")
@@ -52,6 +61,14 @@ func (s sessionItem) Render(selected bool, width int, isFirstInViewport bool) st
 				Foreground(t.BackgroundElement()).
 				Width(width).
 				PaddingLeft(1)
+		} else if s.isCurrentSession {
+			// Different style for current session when selected
+			itemStyle = baseStyle.
+				Background(t.Primary()).
+				Foreground(t.BackgroundElement()).
+				Width(width).
+				PaddingLeft(1).
+				Bold(true)
 		} else {
 			// Normal selection
 			itemStyle = baseStyle.
@@ -66,6 +83,12 @@ func (s sessionItem) Render(selected bool, width int, isFirstInViewport bool) st
 			itemStyle = baseStyle.
 				Foreground(t.Error()).
 				PaddingLeft(1)
+		} else if s.isCurrentSession {
+			// Highlight current session when not selected
+			itemStyle = baseStyle.
+				Foreground(t.Primary()).
+				PaddingLeft(1).
+				Bold(true)
 		} else {
 			itemStyle = baseStyle.
 				PaddingLeft(1)
@@ -190,6 +213,7 @@ func (s *sessionDialog) updateListItems() {
 		item := sessionItem{
 			title:              sess.Title,
 			isDeleteConfirming: s.deleteConfirmation == i,
+			isCurrentSession:   s.app.Session != nil && s.app.Session.ID == sess.ID,
 		}
 		items = append(items, item)
 	}
@@ -225,15 +249,23 @@ func NewSessionDialog(app *app.App) SessionDialog {
 		items = append(items, sessionItem{
 			title:              sess.Title,
 			isDeleteConfirming: false,
+			isCurrentSession:   app.Session != nil && app.Session.ID == sess.ID,
 		})
 	}
 
-	// Create a generic list component
 	listComponent := list.NewListComponent(
-		items,
-		10, // maxVisibleSessions
-		"No sessions available",
-		true, // useAlphaNumericKeys
+		list.WithItems(items),
+		list.WithMaxVisibleHeight[sessionItem](10),
+		list.WithFallbackMessage[sessionItem]("No sessions available"),
+		list.WithAlphaNumericKeys[sessionItem](true),
+		list.WithRenderFunc(
+			func(item sessionItem, selected bool, width int, baseStyle styles.Style) string {
+				return item.Render(selected, width, false, baseStyle)
+			},
+		),
+		list.WithSelectableFunc(func(item sessionItem) bool {
+			return true
+		}),
 	)
 	listComponent.SetMaxWidth(layout.Current.Container.Width - 12)
 

@@ -139,7 +139,8 @@ export namespace Provider {
       }
     },
     "amazon-bedrock": async () => {
-      if (!process.env["AWS_PROFILE"] && !process.env["AWS_ACCESS_KEY_ID"]) return { autoload: false }
+      if (!process.env["AWS_PROFILE"] && !process.env["AWS_ACCESS_KEY_ID"] && !process.env["AWS_BEARER_TOKEN_BEDROCK"])
+        return { autoload: false }
 
       const region = process.env["AWS_REGION"] ?? "us-east-1"
 
@@ -271,14 +272,20 @@ export namespace Provider {
           reasoning: model.reasoning ?? existing?.reasoning ?? false,
           temperature: model.temperature ?? existing?.temperature ?? false,
           tool_call: model.tool_call ?? existing?.tool_call ?? true,
-          cost: {
-            ...existing?.cost,
-            ...model.cost,
-            input: 0,
-            output: 0,
-            cache_read: 0,
-            cache_write: 0,
-          },
+          cost:
+            !model.cost && !existing?.cost
+              ? {
+                  input: 0,
+                  output: 0,
+                  cache_read: 0,
+                  cache_write: 0,
+                }
+              : {
+                  cache_read: 0,
+                  cache_write: 0,
+                  ...existing?.cost,
+                  ...model.cost,
+                },
           options: {
             ...existing?.options,
             ...model.options,
@@ -405,6 +412,17 @@ export namespace Provider {
           { cause: e },
         )
       throw e
+    }
+  }
+
+  export async function getSmallModel(providerID: string) {
+    const provider = await state().then((state) => state.providers[providerID])
+    if (!provider) return
+    const priority = ["3-5-haiku", "3.5-haiku", "gemini-2.5-flash"]
+    for (const item of priority) {
+      for (const model of Object.keys(provider.info.models)) {
+        if (model.includes(item)) return getModel(providerID, model)
+      }
     }
   }
 

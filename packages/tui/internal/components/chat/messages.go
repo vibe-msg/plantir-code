@@ -10,6 +10,7 @@ import (
 	"github.com/sst/opencode-sdk-go"
 	"github.com/sst/opencode/internal/app"
 	"github.com/sst/opencode/internal/components/dialog"
+	"github.com/sst/opencode/internal/components/toast"
 	"github.com/sst/opencode/internal/layout"
 	"github.com/sst/opencode/internal/styles"
 	"github.com/sst/opencode/internal/theme"
@@ -18,37 +19,30 @@ import (
 
 type MessagesComponent interface {
 	tea.Model
-	View(width, height int) string
-	SetWidth(width int) tea.Cmd
+	tea.ViewModel
 	PageUp() (tea.Model, tea.Cmd)
 	PageDown() (tea.Model, tea.Cmd)
 	HalfPageUp() (tea.Model, tea.Cmd)
 	HalfPageDown() (tea.Model, tea.Cmd)
-	First() (tea.Model, tea.Cmd)
-	Last() (tea.Model, tea.Cmd)
-	Previous() (tea.Model, tea.Cmd)
-	Next() (tea.Model, tea.Cmd)
 	ToolDetailsVisible() bool
-	Selected() string
+	GotoTop() (tea.Model, tea.Cmd)
+	GotoBottom() (tea.Model, tea.Cmd)
+	CopyLastMessage() (tea.Model, tea.Cmd)
 }
 
 type messagesComponent struct {
-	width           int
+	width, height   int
 	app             *app.App
+	header          string
 	viewport        viewport.Model
-	cache           *MessageCache
+	cache           *PartCache
 	rendering       bool
 	showToolDetails bool
 	tail            bool
 	partCount       int
 	lineCount       int
-	selectedPart    int
-	selectedText    string
 }
 type renderFinishedMsg struct{}
-type selectedMessagePartChangedMsg struct {
-	part int
-}
 
 type ToggleToolDetailsMsg struct{}
 
@@ -56,17 +50,23 @@ func (m *messagesComponent) Init() tea.Cmd {
 	return tea.Batch(m.viewport.Init())
 }
 
-func (m *messagesComponent) Selected() string {
-	return m.selectedText
-}
-
 func (m *messagesComponent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		effectiveWidth := msg.Width - 4
+		// Clear cache on resize since width affects rendering
+		if m.width != effectiveWidth {
+			m.cache.Clear()
+		}
+		m.width = effectiveWidth
+		m.height = msg.Height - 7
+		m.viewport.SetWidth(m.width)
+		m.header = m.renderHeader()
+		return m, m.Reload()
 	case app.SendMsg:
 		m.viewport.GotoBottom()
 		m.tail = true
-		m.selectedPart = -1
 		return m, nil
 	case app.OptimisticMessageAddedMsg:
 		m.tail = true
@@ -90,25 +90,21 @@ func (m *messagesComponent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.tail {
 			m.viewport.GotoBottom()
 		}
-	case selectedMessagePartChangedMsg:
-		return m, m.Reload()
+
 	case opencode.EventListResponseEventSessionUpdated:
 		if msg.Properties.Info.ID == m.app.Session.ID {
-			m.renderView(m.width)
-			if m.tail {
-				m.viewport.GotoBottom()
-			}
+			m.header = m.renderHeader()
 		}
 	case opencode.EventListResponseEventMessageUpdated:
 		if msg.Properties.Info.SessionID == m.app.Session.ID {
-			m.renderView(m.width)
+			m.renderView()
 			if m.tail {
 				m.viewport.GotoBottom()
 			}
 		}
 	case opencode.EventListResponseEventMessagePartUpdated:
 		if msg.Properties.Part.SessionID == m.app.Session.ID {
-			m.renderView(m.width)
+			m.renderView()
 			if m.tail {
 				m.viewport.GotoBottom()
 			}
@@ -123,9 +119,11 @@ func (m *messagesComponent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *messagesComponent) renderView(width int) {
+func (m *messagesComponent) renderView() {
 	measure := util.Measure("messages.renderView")
 	defer measure("messageCount", len(m.app.Messages))
+
+	m.header = m.renderHeader()
 
 	t := theme.CurrentTheme()
 	blocks := make([]string, 0)
@@ -134,16 +132,23 @@ func (m *messagesComponent) renderView(width int) {
 
 	orphanedToolCalls := make([]opencode.ToolPart, 0)
 
+	width := min(m.width, app.MAX_CONTAINER_WIDTH)
+	if m.app.Config.Layout == opencode.LayoutConfigStretch {
+		width = m.width
+	}
+
 	for _, message := range m.app.Messages {
 		var content string
 		var cached bool
 
 		switch casted := message.Info.(type) {
 		case opencode.UserMessage:
-		userLoop:
 			for partIndex, part := range message.Parts {
 				switch part := part.(type) {
 				case opencode.TextPart:
+					if part.Synthetic {
+						continue
+					}
 					remainingParts := message.Parts[partIndex+1:]
 					fileParts := make([]opencode.FilePart, 0)
 					for _, part := range remainingParts {
@@ -183,7 +188,7 @@ func (m *messagesComponent) renderView(width int) {
 						flexItems...,
 					)
 
-					key := m.cache.GenerateKey(casted.ID, part.Text, width, m.selectedPart == m.partCount, files)
+					key := m.cache.GenerateKey(casted.ID, part.Text, width, files)
 					content, cached = m.cache.Get(key)
 					if !cached {
 						content = renderText(
@@ -192,18 +197,22 @@ func (m *messagesComponent) renderView(width int) {
 							part.Text,
 							m.app.Config.Username,
 							m.showToolDetails,
-							m.partCount == m.selectedPart,
 							width,
 							files,
+						)
+						content = lipgloss.PlaceHorizontal(
+							m.width,
+							lipgloss.Center,
+							content,
+							styles.WhitespaceStyle(t.Background()),
 						)
 						m.cache.Set(key, content)
 					}
 					if content != "" {
-						m = m.updateSelected(content, part.Text)
+						m.partCount++
+						m.lineCount += lipgloss.Height(content) + 1
 						blocks = append(blocks, content)
 					}
-					// Only render the first text part
-					break userLoop
 				}
 			}
 
@@ -236,7 +245,7 @@ func (m *messagesComponent) renderView(width int) {
 							remaining = false
 						case opencode.ToolPart:
 							toolCallParts = append(toolCallParts, part)
-							if part.State.Status != opencode.ToolPartStateStatusCompleted || part.State.Status != opencode.ToolPartStateStatusError {
+							if part.State.Status != opencode.ToolPartStateStatusCompleted && part.State.Status != opencode.ToolPartStateStatusError {
 								// i don't think there's a case where a tool call isn't in result state
 								// and the message time is 0, but just in case
 								finished = false
@@ -245,7 +254,7 @@ func (m *messagesComponent) renderView(width int) {
 					}
 
 					if finished {
-						key := m.cache.GenerateKey(casted.ID, part.Text, width, m.showToolDetails, m.selectedPart == m.partCount)
+						key := m.cache.GenerateKey(casted.ID, part.Text, width, m.showToolDetails)
 						content, cached = m.cache.Get(key)
 						if !cached {
 							content = renderText(
@@ -254,10 +263,15 @@ func (m *messagesComponent) renderView(width int) {
 								part.Text,
 								casted.ModelID,
 								m.showToolDetails,
-								m.partCount == m.selectedPart,
 								width,
 								"",
 								toolCallParts...,
+							)
+							content = lipgloss.PlaceHorizontal(
+								m.width,
+								lipgloss.Center,
+								content,
+								styles.WhitespaceStyle(t.Background()),
 							)
 							m.cache.Set(key, content)
 						}
@@ -268,14 +282,20 @@ func (m *messagesComponent) renderView(width int) {
 							part.Text,
 							casted.ModelID,
 							m.showToolDetails,
-							m.partCount == m.selectedPart,
 							width,
 							"",
 							toolCallParts...,
 						)
+						content = lipgloss.PlaceHorizontal(
+							m.width,
+							lipgloss.Center,
+							content,
+							styles.WhitespaceStyle(t.Background()),
+						)
 					}
 					if content != "" {
-						m = m.updateSelected(content, part.Text)
+						m.partCount++
+						m.lineCount += lipgloss.Height(content) + 1
 						blocks = append(blocks, content)
 					}
 				case opencode.ToolPart:
@@ -286,20 +306,31 @@ func (m *messagesComponent) renderView(width int) {
 						continue
 					}
 
+					width := width
+					if m.app.Config.Layout == opencode.LayoutConfigAuto &&
+						part.Tool == "edit" &&
+						part.State.Error == "" {
+						width = min(m.width, app.EDIT_DIFF_MAX_WIDTH)
+					}
+
 					if part.State.Status == opencode.ToolPartStateStatusCompleted || part.State.Status == opencode.ToolPartStateStatusError {
 						key := m.cache.GenerateKey(casted.ID,
 							part.ID,
 							m.showToolDetails,
 							width,
-							m.partCount == m.selectedPart,
 						)
 						content, cached = m.cache.Get(key)
 						if !cached {
 							content = renderToolDetails(
 								m.app,
 								part,
-								m.partCount == m.selectedPart,
 								width,
+							)
+							content = lipgloss.PlaceHorizontal(
+								m.width,
+								lipgloss.Center,
+								content,
+								styles.WhitespaceStyle(t.Background()),
 							)
 							m.cache.Set(key, content)
 						}
@@ -308,12 +339,18 @@ func (m *messagesComponent) renderView(width int) {
 						content = renderToolDetails(
 							m.app,
 							part,
-							m.partCount == m.selectedPart,
 							width,
+						)
+						content = lipgloss.PlaceHorizontal(
+							m.width,
+							lipgloss.Center,
+							content,
+							styles.WhitespaceStyle(t.Background()),
 						)
 					}
 					if content != "" {
-						m = m.updateSelected(content, "")
+						m.partCount++
+						m.lineCount += lipgloss.Height(content) + 1
 						blocks = append(blocks, content)
 					}
 				}
@@ -340,35 +377,35 @@ func (m *messagesComponent) renderView(width int) {
 			error = renderContentBlock(
 				m.app,
 				error,
-				false,
 				width,
 				WithBorderColor(t.Error()),
+			)
+			error = lipgloss.PlaceHorizontal(
+				m.width,
+				lipgloss.Center,
+				error,
+				styles.WhitespaceStyle(t.Background()),
 			)
 			blocks = append(blocks, error)
 			m.lineCount += lipgloss.Height(error) + 1
 		}
 	}
 
+	m.viewport.SetHeight(m.height - lipgloss.Height(m.header))
 	m.viewport.SetContent("\n" + strings.Join(blocks, "\n\n"))
-	if m.selectedPart == m.partCount {
+	if m.tail {
 		m.viewport.GotoBottom()
 	}
-
 }
 
-func (m *messagesComponent) updateSelected(content string, selectedText string) *messagesComponent {
-	if m.selectedPart == m.partCount {
-		m.viewport.SetYOffset(m.lineCount - (m.viewport.Height() / 2) + 4)
-		m.selectedText = selectedText
-	}
-	m.partCount++
-	m.lineCount += lipgloss.Height(content) + 1
-	return m
-}
-
-func (m *messagesComponent) header(width int) string {
+func (m *messagesComponent) renderHeader() string {
 	if m.app.Session.ID == "" {
 		return ""
+	}
+
+	headerWidth := min(m.width, app.MAX_CONTAINER_WIDTH)
+	if m.app.Config.Layout == opencode.LayoutConfigStretch {
+		headerWidth = m.width
 	}
 
 	t := theme.CurrentTheme()
@@ -377,7 +414,7 @@ func (m *messagesComponent) header(width int) string {
 	headerLines := []string{}
 	headerLines = append(
 		headerLines,
-		util.ToMarkdown("# "+m.app.Session.Title, width-6, t.Background()),
+		util.ToMarkdown("# "+m.app.Session.Title, headerWidth-6, t.Background()),
 	)
 
 	share := ""
@@ -420,29 +457,34 @@ func (m *messagesComponent) header(width int) string {
 		Render(formatTokensAndCost(tokens, contextWindow, cost, isSubscriptionModel))
 
 	background := t.Background()
-	share = layout.Render(
+
+	var items []layout.FlexItem
+	justify := layout.JustifyEnd
+
+	if m.app.Config.Share != opencode.ConfigShareDisabled {
+		items = append(items, layout.FlexItem{View: share})
+		justify = layout.JustifySpaceBetween
+	}
+
+	items = append(items, layout.FlexItem{View: sessionInfo})
+
+	headerRow := layout.Render(
 		layout.FlexOptions{
 			Background: &background,
 			Direction:  layout.Row,
-			Justify:    layout.JustifySpaceBetween,
+			Justify:    justify,
 			Align:      layout.AlignStretch,
-			Width:      width - 6,
+			Width:      headerWidth - 6,
 		},
-		layout.FlexItem{
-			View: share,
-		},
-		layout.FlexItem{
-			View: sessionInfo,
-		},
+		items...,
 	)
 
-	headerLines = append(headerLines, share)
+	headerLines = append(headerLines, headerRow)
 
 	header := strings.Join(headerLines, "\n")
-
 	header = styles.NewStyle().
 		Background(t.Background()).
-		Width(width).
+		Width(headerWidth).
 		PaddingLeft(2).
 		PaddingRight(2).
 		BorderLeft(true).
@@ -451,6 +493,12 @@ func (m *messagesComponent) header(width int) string {
 		BorderForeground(t.BackgroundElement()).
 		BorderStyle(lipgloss.ThickBorder()).
 		Render(header)
+	header = lipgloss.PlaceHorizontal(
+		m.width,
+		lipgloss.Center,
+		header,
+		styles.WhitespaceStyle(t.Background()),
+	)
 
 	return "\n" + header + "\n"
 }
@@ -480,7 +528,10 @@ func formatTokensAndCost(
 		formattedTokens = strings.Replace(formattedTokens, ".0M", "M", 1)
 	}
 
-	percentage := (float64(tokens) / float64(contextWindow)) * 100
+	percentage := 0.0
+	if contextWindow > 0 {
+		percentage = (float64(tokens) / float64(contextWindow)) * 100
+	}
 
 	if isSubscriptionModel {
 		return fmt.Sprintf(
@@ -499,44 +550,27 @@ func formatTokensAndCost(
 	)
 }
 
-func (m *messagesComponent) View(width, height int) string {
+func (m *messagesComponent) View() string {
 	t := theme.CurrentTheme()
 	if m.rendering {
 		return lipgloss.Place(
-			width,
-			height,
+			m.width,
+			m.height,
 			lipgloss.Center,
 			lipgloss.Center,
 			styles.NewStyle().Background(t.Background()).Render(""),
 			styles.WhitespaceStyle(t.Background()),
 		)
 	}
-	header := m.header(width)
-	m.viewport.SetWidth(width)
-	m.viewport.SetHeight(height - lipgloss.Height(header))
 
 	return styles.NewStyle().
 		Background(t.Background()).
-		Render(header + "\n" + m.viewport.View())
-}
-
-func (m *messagesComponent) SetWidth(width int) tea.Cmd {
-	if m.width == width {
-		return nil
-	}
-	// Clear cache on resize since width affects rendering
-	if m.width != width {
-		m.cache.Clear()
-	}
-	m.width = width
-	m.viewport.SetWidth(width)
-	m.renderView(width)
-	return nil
+		Render(m.header + "\n" + m.viewport.View())
 }
 
 func (m *messagesComponent) Reload() tea.Cmd {
 	return func() tea.Msg {
-		m.renderView(m.width)
+		m.renderView()
 		return renderFinishedMsg{}
 	}
 }
@@ -561,61 +595,50 @@ func (m *messagesComponent) HalfPageDown() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *messagesComponent) Previous() (tea.Model, tea.Cmd) {
-	m.tail = false
-	if m.selectedPart < 0 {
-		m.selectedPart = m.partCount
-	}
-	m.selectedPart--
-	if m.selectedPart < 0 {
-		m.selectedPart = 0
-	}
-	return m, util.CmdHandler(selectedMessagePartChangedMsg{
-		part: m.selectedPart,
-	})
-}
-
-func (m *messagesComponent) Next() (tea.Model, tea.Cmd) {
-	m.tail = false
-	m.selectedPart++
-	if m.selectedPart >= m.partCount {
-		m.selectedPart = m.partCount
-	}
-	return m, util.CmdHandler(selectedMessagePartChangedMsg{
-		part: m.selectedPart,
-	})
-}
-
-func (m *messagesComponent) First() (tea.Model, tea.Cmd) {
-	m.selectedPart = 0
-	m.tail = false
-	return m, util.CmdHandler(selectedMessagePartChangedMsg{
-		part: m.selectedPart,
-	})
-}
-
-func (m *messagesComponent) Last() (tea.Model, tea.Cmd) {
-	m.selectedPart = m.partCount - 1
-	m.tail = true
-	return m, util.CmdHandler(selectedMessagePartChangedMsg{
-		part: m.selectedPart,
-	})
-}
-
 func (m *messagesComponent) ToolDetailsVisible() bool {
 	return m.showToolDetails
+}
+
+func (m *messagesComponent) GotoTop() (tea.Model, tea.Cmd) {
+	m.viewport.GotoTop()
+	return m, nil
+}
+
+func (m *messagesComponent) GotoBottom() (tea.Model, tea.Cmd) {
+	m.viewport.GotoBottom()
+	return m, nil
+}
+
+func (m *messagesComponent) CopyLastMessage() (tea.Model, tea.Cmd) {
+	if len(m.app.Messages) == 0 {
+		return m, nil
+	}
+	lastMessage := m.app.Messages[len(m.app.Messages)-1]
+	var lastTextPart *opencode.TextPart
+	for _, part := range lastMessage.Parts {
+		if p, ok := part.(opencode.TextPart); ok {
+			lastTextPart = &p
+		}
+	}
+	if lastTextPart == nil {
+		return m, nil
+	}
+	var cmds []tea.Cmd
+	cmds = append(cmds, m.app.SetClipboard(lastTextPart.Text))
+	cmds = append(cmds, toast.NewSuccessToast("Message copied to clipboard"))
+	return m, tea.Batch(cmds...)
 }
 
 func NewMessagesComponent(app *app.App) MessagesComponent {
 	vp := viewport.New()
 	vp.KeyMap = viewport.KeyMap{}
+	vp.MouseWheelDelta = 4
 
 	return &messagesComponent{
 		app:             app,
 		viewport:        vp,
 		showToolDetails: true,
-		cache:           NewMessageCache(),
+		cache:           NewPartCache(),
 		tail:            true,
-		selectedPart:    -1,
 	}
 }

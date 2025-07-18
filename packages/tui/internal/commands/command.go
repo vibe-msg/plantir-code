@@ -87,6 +87,7 @@ func (r CommandRegistry) Matches(msg tea.KeyPressMsg, leader bool) []Command {
 const (
 	AppHelpCommand              CommandName = "app_help"
 	SwitchModeCommand           CommandName = "switch_mode"
+	SwitchModeReverseCommand    CommandName = "switch_mode_reverse"
 	EditorOpenCommand           CommandName = "editor_open"
 	SessionNewCommand           CommandName = "session_new"
 	SessionListCommand          CommandName = "session_list"
@@ -94,6 +95,7 @@ const (
 	SessionUnshareCommand       CommandName = "session_unshare"
 	SessionInterruptCommand     CommandName = "session_interrupt"
 	SessionCompactCommand       CommandName = "session_compact"
+	SessionExportCommand        CommandName = "session_export"
 	ToolDetailsCommand          CommandName = "tool_details"
 	ModelListCommand            CommandName = "model_list"
 	ThemeListCommand            CommandName = "theme_list"
@@ -155,14 +157,25 @@ func LoadFromConfig(config *opencode.Config) CommandRegistry {
 		},
 		{
 			Name:        SwitchModeCommand,
-			Description: "switch mode",
+			Description: "next mode",
 			Keybindings: parseBindings("tab"),
+		},
+		{
+			Name:        SwitchModeReverseCommand,
+			Description: "previous mode",
+			Keybindings: parseBindings("shift+tab"),
 		},
 		{
 			Name:        EditorOpenCommand,
 			Description: "open editor",
 			Keybindings: parseBindings("<leader>e"),
 			Trigger:     []string{"editor"},
+		},
+		{
+			Name:        SessionExportCommand,
+			Description: "export conversation",
+			Keybindings: parseBindings("<leader>x"),
+			Trigger:     []string{"export"},
 		},
 		{
 			Name:        SessionNewCommand,
@@ -217,12 +230,12 @@ func LoadFromConfig(config *opencode.Config) CommandRegistry {
 			Keybindings: parseBindings("<leader>t"),
 			Trigger:     []string{"themes"},
 		},
-		{
-			Name:        FileListCommand,
-			Description: "list files",
-			Keybindings: parseBindings("<leader>f"),
-			Trigger:     []string{"files"},
-		},
+		// {
+		// 	Name:        FileListCommand,
+		// 	Description: "list files",
+		// 	Keybindings: parseBindings("<leader>f"),
+		// 	Trigger:     []string{"files"},
+		// },
 		{
 			Name:        FileCloseCommand,
 			Description: "close file",
@@ -323,7 +336,7 @@ func LoadFromConfig(config *opencode.Config) CommandRegistry {
 			Name:        AppExitCommand,
 			Description: "exit the app",
 			Keybindings: parseBindings("ctrl+c", "<leader>q"),
-			Trigger:     []string{"exit", "quit"},
+			Trigger:     []string{"exit", "quit", "q"},
 		},
 	}
 	registry := make(CommandRegistry)
@@ -331,6 +344,10 @@ func LoadFromConfig(config *opencode.Config) CommandRegistry {
 	marshalled, _ := json.Marshal(config.Keybinds)
 	json.Unmarshal(marshalled, &keybinds)
 	for _, command := range defaults {
+		// Remove share/unshare commands if sharing is disabled
+		if config.Share == opencode.ConfigShareDisabled && (command.Name == SessionShareCommand || command.Name == SessionUnshareCommand) {
+			continue
+		}
 		if keybind, ok := keybinds[string(command.Name)]; ok && keybind != "" {
 			command.Keybindings = parseBindings(keybind)
 		}
