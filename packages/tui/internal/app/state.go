@@ -1,4 +1,4 @@
-package config
+package app
 
 import (
 	"bufio"
@@ -23,6 +23,7 @@ type ModeModel struct {
 
 type State struct {
 	Theme              string               `toml:"theme"`
+	ScrollSpeed        *int                 `toml:"scroll_speed"`
 	ModeModel          map[string]ModeModel `toml:"mode_model"`
 	Provider           string               `toml:"provider"`
 	Model              string               `toml:"model"`
@@ -30,6 +31,7 @@ type State struct {
 	RecentlyUsedModels []ModelUsage         `toml:"recently_used_models"`
 	MessagesRight      bool                 `toml:"messages_right"`
 	SplitDiff          bool                 `toml:"split_diff"`
+	MessageHistory     []Prompt             `toml:"message_history"`
 }
 
 func NewState() *State {
@@ -38,6 +40,7 @@ func NewState() *State {
 		Mode:               "build",
 		ModeModel:          make(map[string]ModeModel),
 		RecentlyUsedModels: make([]ModelUsage, 0),
+		MessageHistory:     make([]Prompt, 0),
 	}
 }
 
@@ -75,6 +78,13 @@ func (s *State) RemoveModelFromRecentlyUsed(providerID, modelID string) {
 			s.RecentlyUsedModels = append(s.RecentlyUsedModels[:i], s.RecentlyUsedModels[i+1:]...)
 			return
 		}
+	}
+}
+
+func (s *State) AddPromptToHistory(prompt Prompt) {
+	s.MessageHistory = append([]Prompt{prompt}, s.MessageHistory...)
+	if len(s.MessageHistory) > 50 {
+		s.MessageHistory = s.MessageHistory[:50]
 	}
 }
 

@@ -196,16 +196,20 @@ func renderText(
 	case opencode.UserMessage:
 		ts = time.UnixMilli(int64(casted.Time.Created))
 		base := styles.NewStyle().Foreground(t.Text()).Background(backgroundColor)
-		words := strings.Fields(text)
-		for i, word := range words {
-			if strings.HasPrefix(word, "@") {
-				words[i] = base.Foreground(t.Secondary()).Render(word + " ")
-			} else {
-				words[i] = base.Render(word + " ")
-			}
-		}
-		text = strings.Join(words, "")
 		text = ansi.WordwrapWc(text, width-6, " -")
+		lines := strings.Split(text, "\n")
+		for i, line := range lines {
+			words := strings.Fields(line)
+			for i, word := range words {
+				if strings.HasPrefix(word, "@") {
+					words[i] = base.Foreground(t.Secondary()).Render(word + " ")
+				} else {
+					words[i] = base.Render(word + " ")
+				}
+			}
+			lines[i] = strings.Join(words, "")
+		}
+		text = strings.Join(lines, "\n")
 		content = base.Width(width - 6).Render(text)
 	}
 
@@ -264,6 +268,8 @@ func renderToolDetails(
 	toolCall opencode.ToolPart,
 	width int,
 ) string {
+	measure := util.Measure("chat.renderToolDetails")
+	defer measure("tool", toolCall.Tool)
 	ignoredTools := []string{"todoread"}
 	if slices.Contains(ignoredTools, toolCall.Tool) {
 		return ""
@@ -368,12 +374,14 @@ func renderToolDetails(
 				}
 			}
 		case "bash":
+			command := toolInputMap["command"].(string)
+			body = fmt.Sprintf("```console\n$ %s\n", command)
 			stdout := metadata["stdout"]
 			if stdout != nil {
-				command := toolInputMap["command"].(string)
-				body = fmt.Sprintf("```console\n> %s\n%s```", command, stdout)
-				body = util.ToMarkdown(body, width, backgroundColor)
+				body += ansi.Strip(fmt.Sprintf("%s", stdout))
 			}
+			body += "```"
+			body = util.ToMarkdown(body, width, backgroundColor)
 		case "webfetch":
 			if format, ok := toolInputMap["format"].(string); ok && result != nil {
 				body = *result
@@ -393,7 +401,7 @@ func renderToolDetails(
 						body += fmt.Sprintf("- [x] %s\n", content)
 					case "cancelled":
 						// strike through cancelled todo
-						body += fmt.Sprintf("- [~] ~~%s~~\n", content)
+						body += fmt.Sprintf("- [ ] ~~%s~~\n", content)
 					case "in_progress":
 						// highlight in progress todo
 						body += fmt.Sprintf("- [ ] `%s`\n", content)
@@ -545,8 +553,16 @@ func renderToolTitle(
 		if filename, ok := toolArgsMap["filePath"].(string); ok {
 			title = fmt.Sprintf("%s %s", title, util.Relative(filename))
 		}
-	case "bash", "task":
+	case "bash":
 		if description, ok := toolArgsMap["description"].(string); ok {
+			title = fmt.Sprintf("%s %s", title, description)
+		}
+	case "task":
+		description := toolArgsMap["description"]
+		subagent := toolArgsMap["subagent_type"]
+		if description != nil && subagent != nil {
+			title = fmt.Sprintf("%s[%s] %s", title, subagent, description)
+		} else if description != nil {
 			title = fmt.Sprintf("%s %s", title, description)
 		}
 	case "webfetch":
@@ -568,7 +584,7 @@ func renderToolTitle(
 func renderToolAction(name string) string {
 	switch name {
 	case "task":
-		return "Planning..."
+		return "Delegating..."
 	case "bash":
 		return "Writing command..."
 	case "edit":

@@ -1,9 +1,9 @@
 import { z } from "zod"
 
-import { MessageV2 } from "../session/message-v2"
 import { Bus } from "../bus"
 import fs from "node:fs/promises"
 import path from "node:path"
+import type { Session } from "../session"
 
 export const PlantirEvent = {
   PreSendMessage: Bus.event(
@@ -33,14 +33,7 @@ const TODO_PATH = path.join(TASKS_DIR, "todo.md")
 const LANGUAGE = 'Korean'
 
 export const plantirModeMessage = async ({ input }: {
-  input: {
-    sessionID: string
-    messageID: string
-    providerID: string
-    modelID: string
-    mode?: string
-    parts: (MessageV2.TextPart | MessageV2.FilePart)[]
-  }
+  input: z.infer<typeof Session.ChatInput>
 }) => {
   const modifiedInput = structuredClone(input)
   const textPart = modifiedInput.parts.find((p) => p.type === "text")
@@ -144,13 +137,7 @@ Please reply in ${LANGUAGE}.`
 }
 
 export const preSendMessageHook = async ({ input }: {
-  input: {
-    sessionID: string
-    providerID: string
-    modelID: string
-    mode?: string
-    parts: (MessageV2.TextPart | MessageV2.FilePart)[]
-  }
+  input: z.infer<typeof Session.ChatInput>
 }) => {
   const textPart = input.parts.find((p) => p.type === "text")
 

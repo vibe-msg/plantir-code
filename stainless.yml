@@ -82,7 +82,6 @@ resources:
       mcpLocalConfig: McpLocalConfig
       mcpRemoteConfig: McpRemoteConfig
       modeConfig: ModeConfig
-      layoutConfig: LayoutConfig
     methods:
       get: get /config
 
@@ -92,7 +91,13 @@ resources:
       message: Message
       part: Part
       textPart: TextPart
+      textPartInput: TextPartInput
       filePart: FilePart
+      filePartInput: FilePartInput
+      filePartSourceText: FilePartSourceText
+      filePartSource: FilePartSource
+      fileSource: FileSource
+      symbolSource: SymbolSource
       toolPart: ToolPart
       stepStartPart: StepStartPart
       stepFinishPart: StepFinishPart
@@ -115,10 +120,17 @@ resources:
       summarize: post /session/{id}/summarize
       messages: get /session/{id}/message
       chat: post /session/{id}/message
+      revert: post /session/{id}/revert
+      unrevert: post /session/{id}/unrevert
+
+  tui:
+    methods:
+      appendPrompt: post /tui/append-prompt
+      openHelp: post /tui/open-help
 
 settings:
   disable_mock_tests: true
-  license: Apache-2.0
+  license: MIT
 
 security:
   - {}
