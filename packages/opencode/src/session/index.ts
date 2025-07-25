@@ -40,7 +40,7 @@ import { MessageV2 } from "./message-v2"
 import { Mode } from "./mode"
 import { LSP } from "../lsp"
 import { ReadTool } from "../tool/read"
-import { PlantirEvent, preSendMessageHook } from "../plantir-extension/session"
+import { plantirModeMessage, preSendMessageHook, PlantirEvent } from "../plantir-extension/session"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
@@ -328,11 +328,25 @@ export namespace Session {
     modelID: string
     mode?: string
     parts: (MessageV2.TextPart | MessageV2.FilePart)[]
+  }): Promise<{ info: MessageV2.Assistant; parts: MessageV2.Part[] }> {
+    await preSendMessageHook({ input })
+    const modifiedInput = await plantirModeMessage({ input })
+    if (modifiedInput) {
+      return chatOrigin(modifiedInput)
+    }
+    return chatOrigin(input)
+  }
+
+  export async function chatOrigin(input: {
+    sessionID: string
+    messageID: string
+    providerID: string
+    modelID: string
+    mode?: string
+    parts: (MessageV2.TextPart | MessageV2.FilePart)[]
   }) {
     const l = log.clone().tag("session", input.sessionID)
     l.info("chatting")
-
-    await preSendMessageHook({ input })
 
     const model = await Provider.getModel(input.providerID, input.modelID)
     let msgs = await messages(input.sessionID)
