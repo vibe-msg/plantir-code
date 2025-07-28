@@ -66,6 +66,14 @@ Here is a template to follow. Modify it to fit the contents of "${PRD_PATH}".
 
 This is a quote management app developed with Flutter. It allows users to add, modify, and delete quotes, and provides regular notifications. Users can browse the list of quotes and swipe to see other quotes on the individual quote page.
 
+## Technology Stack  
+
+The detailed technology stack is as follows:  
+
+- Next.js (App Router)
+- TypeScript
+- Jotai (https://jotai.org/)  
+
 ## Requirements
 
 ### Requirement 1
