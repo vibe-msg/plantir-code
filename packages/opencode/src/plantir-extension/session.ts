@@ -53,11 +53,13 @@ export const plantirModeMessage = async ({ input }: {
   } catch (error) {
     // 파일이 없으면 AI에게 생성 요청
     textPart.text = `You are an AI assistant. Your task is to generate a requirements document based on the PRD.
-Please read the content of "${PRD_PATH}".
+Please read the contents of ${PRD_PATH} where the PRD is written.
 Then, create a new file at "${REQUIREMENTS_PATH}" using the EARS (Easy Approach to Requirements Syntax).
 
 The following is an example template to follow. Modify it to fit the contents of "${PRD_PATH}".
 Modify it to match the template structure, ensuring that all content from the read material is included without omission. For example, if the technology stack is defined, add requirements related to the technology stack.
+If there are requirements in the PRD that are generally considered necessary, add them in as much detail as possible.
+If there are any gaps in the Requirements Document, ask the user what they think should be added to the PRD and end the session.
 
 <!-- Template Start -->
 
