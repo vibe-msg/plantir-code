@@ -56,7 +56,8 @@ export const plantirModeMessage = async ({ input }: {
 Please read the content of "${PRD_PATH}".
 Then, create a new file at "${REQUIREMENTS_PATH}" using the EARS (Easy Approach to Requirements Syntax).
 
-Here is a template to follow. Modify it to fit the contents of "${PRD_PATH}".
+The following is an example template to follow. Modify it to fit the contents of "${PRD_PATH}".
+Modify it to match the template structure, ensuring that all content from the read material is included without omission. For example, if the technology stack is defined, add requirements related to the technology stack.
 
 <!-- Template Start -->
 
@@ -65,14 +66,6 @@ Here is a template to follow. Modify it to fit the contents of "${PRD_PATH}".
 ## Introduction
 
 This is a quote management app developed with Flutter. It allows users to add, modify, and delete quotes, and provides regular notifications. Users can browse the list of quotes and swipe to see other quotes on the individual quote page.
-
-## Technology Stack  
-
-The detailed technology stack is as follows:  
-
-- Next.js (App Router)
-- TypeScript
-- Jotai (https://jotai.org/)  
 
 ## Requirements
 
