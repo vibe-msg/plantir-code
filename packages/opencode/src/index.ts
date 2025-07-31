@@ -1,4 +1,5 @@
 import { execSync } from "child_process"
+import { join } from "path"
 import "zod-openapi/extend"
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
@@ -18,6 +19,7 @@ import { DebugCommand } from "./cli/cmd/debug"
 import { StatsCommand } from "./cli/cmd/stats"
 import { McpCommand } from "./cli/cmd/mcp"
 import { SandboxCommand } from "./cli/cmd/sandbox"
+import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from "fs"
 
 const cancel = new AbortController()
 
@@ -59,7 +61,7 @@ const argv = yargs(hideBin(process.argv))
       const { App } = await import("./app/app")
 
       App.provide({ cwd: process.cwd() }, async () => {
-        const cfg = await Config.get()
+        const cfg = (await Config.get()) as any
         if (cfg.log_level) {
           Log.setLevel(cfg.log_level as Log.Level)
         } else {
@@ -81,12 +83,60 @@ const useSandbox = process.argv.includes("--sandbox") || process.argv.includes("
 if (useSandbox) {
   let sandboxCommand: string
   try {
-    sandboxCommand = execSync("node ./scripts/sandbox_command.js").toString().trim()
+    sandboxCommand = execSync("node scripts/sandbox_command.js").toString().trim()
   } catch {
     console.warn("ERROR: could not detect sandbox container command")
     process.exit(0)
   }
   console.log(`using ${sandboxCommand} for sandboxing`)
+
+  const baseImage = "us-docker.pkg.dev/gemini-code-dev/gemini-cli/sandbox:0.1.15"
+  const baseDockerfile = "Dockerfile"
+
+  execSync("bun install --registry=https://registry.npmjs.org", { stdio: "inherit" })
+  // execSync("npm run build --workspaces", { stdio: "inherit" })
+
+  console.log("packing opencode ...")
+  const cliPackageDir = join("packages", "opencode")
+  rmSync(join(cliPackageDir, "opencode-*.tgz"), { force: true })
+  execSync(`npm pack -w opencode --pack-destination ./packages/opencode`, {
+    stdio: "ignore",
+  })
+
+  const packageVersion = JSON.parse(
+    readFileSync(join(process.cwd(), "/packages/opencode/package.json"), "utf-8"),
+  ).version
+  chmodSync(join(cliPackageDir, `opencode-${packageVersion}.tgz`), 0o755)
+
+  const buildStdout = process.env["VERBOSE"] ? "inherit" : "ignore"
+
+  function buildImage(imageName: string, dockerfile: string) {
+    console.log(`building ${imageName} ... (can be slow first time)`)
+    const buildCommand =
+      sandboxCommand === "podman" ? `${sandboxCommand} build --authfile=<(echo '{}')` : `${sandboxCommand} build`
+
+    // const npmPackageVersion = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf-8")).version
+
+    const imageTag = process.env["PLANTIR_SANDBOX_IMAGE_TAG"] || imageName.split(":")[1]
+    const finalImageName = `${imageName.split(":")[0]}:${imageTag}`
+
+    execSync(
+      `${buildCommand} ${
+        process.env["BUILD_SANDBOX_FLAGS"] || ""
+      } --build-arg CLI_VERSION_ARG=${packageVersion} -f "${dockerfile}" -t "${finalImageName}" .`,
+      { stdio: buildStdout, shell: "/bin/bash" },
+    )
+    console.log(`built ${finalImageName}`)
+    if (existsSync("/workspace/final_image_uri.txt")) {
+      // The publish step only supports one image. If we build multiple, only the last one
+      // will be published. Throw an error to make this failure explicit.
+      throw new Error("CI artifact file /workspace/final_image_uri.txt already exists. Refusing to overwrite.")
+    }
+    writeFileSync("/workspace/final_image_uri.txt", finalImageName)
+  }
+
+  buildImage(baseImage, baseDockerfile)
+  execSync(`${sandboxCommand} image prune -f`, { stdio: "ignore" })
 } else {
   const cli = argv
     .usage("\n" + UI.logo())
