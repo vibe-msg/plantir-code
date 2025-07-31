@@ -1,3 +1,4 @@
+import { execSync } from "child_process"
 import "zod-openapi/extend"
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
@@ -16,6 +17,7 @@ import { TuiCommand } from "./cli/cmd/tui"
 import { DebugCommand } from "./cli/cmd/debug"
 import { StatsCommand } from "./cli/cmd/stats"
 import { McpCommand } from "./cli/cmd/mcp"
+import { SandboxCommand } from "./cli/cmd/sandbox"
 
 const cancel = new AbortController()
 
@@ -31,11 +33,20 @@ process.on("uncaughtException", (e) => {
   })
 })
 
-const cli = yargs(hideBin(process.argv))
+const argv = yargs(hideBin(process.argv))
   .scriptName("opencode")
   .help("help", "show help")
   .version("version", "show version number", Installation.VERSION)
   .alias("version", "v")
+  .option("s", {
+    alias: "sandbox",
+    describe: "use sandbox mode",
+    type: "string",
+  })
+  .option("skip", {
+    describe: "커맨드 실행을 미들웨어에서 막아봄",
+    type: "boolean",
+  })
   .option("print-logs", {
     describe: "print logs to stderr",
     type: "boolean",
@@ -65,59 +76,74 @@ const cli = yargs(hideBin(process.argv))
       args: process.argv.slice(2),
     })
   })
-  .usage("\n" + UI.logo())
-  .command(McpCommand)
-  .command(TuiCommand)
-  .command(RunCommand)
-  .command(GenerateCommand)
-  .command(DebugCommand)
-  .command(AuthCommand)
-  .command(UpgradeCommand)
-  .command(ServeCommand)
-  .command(ModelsCommand)
-  .command(StatsCommand)
-  .fail((msg) => {
-    if (msg.startsWith("Unknown argument") || msg.startsWith("Not enough non-option arguments")) {
-      cli.showHelp("log")
+
+const useSandbox = process.argv.includes("--sandbox") || process.argv.includes("-s")
+if (useSandbox) {
+  let sandboxCommand: string
+  try {
+    sandboxCommand = execSync("node ./scripts/sandbox_command.js").toString().trim()
+  } catch {
+    console.warn("ERROR: could not detect sandbox container command")
+    process.exit(0)
+  }
+  console.log(`using ${sandboxCommand} for sandboxing`)
+} else {
+  const cli = argv
+    .usage("\n" + UI.logo())
+    .command(McpCommand)
+    .command(TuiCommand)
+    .command(RunCommand)
+    .command(GenerateCommand)
+    .command(DebugCommand)
+    .command(AuthCommand)
+    .command(SandboxCommand)
+    .command(UpgradeCommand)
+    .command(ServeCommand)
+    .command(ModelsCommand)
+    .command(StatsCommand)
+    .fail((msg) => {
+      if (msg.startsWith("Unknown argument") || msg.startsWith("Not enough non-option arguments")) {
+        cli.showHelp("log")
+      }
+    })
+    .strict()
+
+  try {
+    await cli.parse()
+  } catch (e) {
+    let data: Record<string, any> = {}
+    if (e instanceof NamedError) {
+      const obj = e.toObject()
+      Object.assign(data, {
+        ...obj.data,
+      })
     }
-  })
-  .strict()
 
-try {
-  await cli.parse()
-} catch (e) {
-  let data: Record<string, any> = {}
-  if (e instanceof NamedError) {
-    const obj = e.toObject()
-    Object.assign(data, {
-      ...obj.data,
-    })
-  }
+    if (e instanceof Error) {
+      Object.assign(data, {
+        name: e.name,
+        message: e.message,
+        cause: e.cause?.toString(),
+      })
+    }
 
-  if (e instanceof Error) {
-    Object.assign(data, {
-      name: e.name,
-      message: e.message,
-      cause: e.cause?.toString(),
-    })
+    if (e instanceof ResolveMessage) {
+      Object.assign(data, {
+        name: e.name,
+        message: e.message,
+        code: e.code,
+        specifier: e.specifier,
+        referrer: e.referrer,
+        position: e.position,
+        importKind: e.importKind,
+      })
+    }
+    Log.Default.error("fatal", data)
+    const formatted = FormatError(e)
+    if (formatted) UI.error(formatted)
+    if (formatted === undefined) UI.error("Unexpected error, check log file at " + Log.file() + " for more details")
+    process.exitCode = 1
   }
-
-  if (e instanceof ResolveMessage) {
-    Object.assign(data, {
-      name: e.name,
-      message: e.message,
-      code: e.code,
-      specifier: e.specifier,
-      referrer: e.referrer,
-      position: e.position,
-      importKind: e.importKind,
-    })
-  }
-  Log.Default.error("fatal", data)
-  const formatted = FormatError(e)
-  if (formatted) UI.error(formatted)
-  if (formatted === undefined) UI.error("Unexpected error, check log file at " + Log.file() + " for more details")
-  process.exitCode = 1
 }
 
 cancel.abort()

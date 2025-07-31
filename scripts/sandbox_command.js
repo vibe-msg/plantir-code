@@ -13,25 +13,25 @@ const argv = yargs(hideBin(process.argv)).option("q", {
   default: false,
 }).argv
 
-let geminiSandbox = process.env["GEMINI_SANDBOX"]
+let plantirSandbox = process.env["PLANTIR_SANDBOX"]
 
-if (!geminiSandbox) {
-  const userSettingsFile = join(os.homedir(), ".gemini", "settings.json")
+if (!plantirSandbox) {
+  const userSettingsFile = join(os.homedir(), ".plantir", "settings.json")
   if (existsSync(userSettingsFile)) {
     const settings = JSON.parse(stripJsonComments(readFileSync(userSettingsFile, "utf-8")))
     if (settings.sandbox) {
-      geminiSandbox = settings.sandbox
+      plantirSandbox = settings.sandbox
     }
   }
 }
 
-if (!geminiSandbox) {
+if (!plantirSandbox) {
   let currentDir = process.cwd()
   while (true) {
-    const geminiEnv = join(currentDir, ".gemini", ".env")
+    const plantirEnv = join(currentDir, ".plantir", ".env")
     const regularEnv = join(currentDir, ".env")
-    if (existsSync(geminiEnv)) {
-      dotenv.config({ path: geminiEnv, quiet: true })
+    if (existsSync(plantirEnv)) {
+      dotenv.config({ path: plantirEnv, quiet: true })
       break
     } else if (existsSync(regularEnv)) {
       dotenv.config({ path: regularEnv, quiet: true })
@@ -43,12 +43,12 @@ if (!geminiSandbox) {
     }
     currentDir = parentDir
   }
-  geminiSandbox = process.env["GEMINI_SANDBOX"]
+  plantirSandbox = process.env["PLANTIR_SANDBOX"]
 }
 
-geminiSandbox = (geminiSandbox || "").toLowerCase()
+plantirSandbox = (plantirSandbox || "").toLowerCase()
 
-const commandExists = (cmd: string) => {
+const commandExists = (cmd) => {
   const checkCommand = os.platform() === "win32" ? "where" : "command -v"
   try {
     execSync(`${checkCommand} ${cmd}`, { stdio: "ignore" })
@@ -67,20 +67,20 @@ const commandExists = (cmd: string) => {
 }
 
 let command = ""
-if (["1", "true"].includes(geminiSandbox)) {
+if (["1", "true"].includes(plantirSandbox)) {
   if (commandExists("docker")) {
     command = "docker"
   } else if (commandExists("podman")) {
     command = "podman"
   } else {
-    console.error("ERROR: install docker or podman or specify command in GEMINI_SANDBOX")
+    console.error("ERROR: install docker or podman or specify command in PLANTIR_SANDBOX")
     process.exit(1)
   }
-} else if (geminiSandbox && !["0", "false"].includes(geminiSandbox)) {
-  if (commandExists(geminiSandbox)) {
-    command = geminiSandbox
+} else if (plantirSandbox && !["0", "false"].includes(plantirSandbox)) {
+  if (commandExists(plantirSandbox)) {
+    command = plantirSandbox
   } else {
-    console.error(`ERROR: missing sandbox command '${geminiSandbox}' (from GEMINI_SANDBOX)`)
+    console.error(`ERROR: missing sandbox command '${plantirSandbox}' (from PLANTIR_SANDBOX)`)
     process.exit(1)
   }
 } else {
