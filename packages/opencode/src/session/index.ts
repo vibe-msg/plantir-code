@@ -42,6 +42,7 @@ import { ReadTool } from "../tool/read"
 import { mergeDeep, pipe, splitWhen } from "remeda"
 import { ToolRegistry } from "../tool/registry"
 import { plantirModeMessage, preSendMessageHook, PlantirEvent } from "../plantir-extension/session"
+import { runAutoBackup } from "../util/auto-backup"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
@@ -372,6 +373,9 @@ export namespace Session {
     input: z.infer<typeof ChatInput>,
   ): Promise<{ info: MessageV2.Assistant; parts: MessageV2.Part[] }> {
     await preSendMessageHook({ input })
+    await runAutoBackup(input).then(() => {
+      console.log('백업 완료!');
+    });
     const modifiedInput = await plantirModeMessage({ input })
     if (modifiedInput) {
       return chatOrigin(modifiedInput)
