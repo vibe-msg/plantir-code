@@ -32,6 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # set up npm global package folder under /usr/local/share
 # give it to non-root user node, already set up in base image
 RUN mkdir -p /usr/local/share/npm-global \
+  && mkdir -p /usr/local/share/npm-global/lib \
+  && mkdir -p /usr/local/temp \
   && chown -R node:node /usr/local/share/npm-global
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
 ENV PATH=$PATH:/usr/local/share/npm-global/bin
@@ -41,9 +43,10 @@ USER node
 
 # install gemini-cli and clean up
 COPY packages/opencode/opencode-*.tgz /usr/local/share/npm-global/plantir-cli.tgz
-RUN npm install -g /usr/local/share/npm-global/plantir-cli.tgz \
-  && npm cache clean --force \
+RUN cd /usr/local/temp \
+  && npx bun install -g /usr/local/share/npm-global/plantir-cli.tgz \
   && rm -f /usr/local/share/npm-global/plantir-cli.tgz
 
+  # --registry=https://registry.npmjs.org
 # default entrypoint when none specified
 CMD ["opencode"]
