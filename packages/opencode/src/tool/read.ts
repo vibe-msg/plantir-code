@@ -7,12 +7,10 @@ import { FileTime } from "../file/time"
 import DESCRIPTION from "./read.txt"
 import { App } from "../app/app"
 
-const MAX_READ_SIZE = 250 * 1024
 const DEFAULT_READ_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000
 
-export const ReadTool = Tool.define({
-  id: "read",
+export const ReadTool = Tool.define("read", {
   description: DESCRIPTION,
   parameters: z.object({
     filePath: z.string().describe("The path to the file to read"),
@@ -45,10 +43,7 @@ export const ReadTool = Tool.define({
 
       throw new Error(`File not found: ${filePath}`)
     }
-    const stats = await file.stat()
 
-    if (stats.size > MAX_READ_SIZE)
-      throw new Error(`File is too large (${stats.size} bytes). Maximum size is ${MAX_READ_SIZE} bytes`)
     const limit = params.limit ?? DEFAULT_READ_LIMIT
     const offset = params.offset || 0
     const isImage = isImageFile(filePath)

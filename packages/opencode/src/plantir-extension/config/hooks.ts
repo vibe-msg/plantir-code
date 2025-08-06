@@ -14,13 +14,13 @@ export const plantirExtensionConfigHooks = ({
   Bus.subscribe(Session.Event.PreSendMessage, async (payload) => {
     const cfg = await Config.get()
     const { sessionID, text } = payload.properties
-    
+
     log.info("pre_send_message", {
       sessionID,
       text: text.substring(0, 100) + (text.length > 100 ? "..." : ""),
     })
 
-    const replaceVariables = (str: string) => 
+    const replaceVariables = (str: string) =>
       str.replace("$TEXT", text).replace("$SESSION_ID", sessionID)
 
     try {
@@ -29,7 +29,7 @@ export const plantirExtensionConfigHooks = ({
           log.info("executing pre_send_message hook", {
             command: item.command,
           })
-          
+
           const proc = Bun.spawn({
             cmd: item.command.map(replaceVariables),
             env: {
@@ -69,7 +69,7 @@ export const plantirExtensionConfigHooks = ({
           }
         }
       }
-      
+
       await Bus.publish(Session.Event.HookCompleted, {
         sessionID,
         hookType: "pre_send_message",

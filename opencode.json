@@ -1,6 +1,15 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "google/gemini-2.5-pro",
+  "mode": {
+    "plantir": {
+      "tools": {
+        "write": true,
+        "edit": true,
+        "bash": true
+      }
+    }
+  },
   "experimental": {
     "hook": {
       "file_edited": {
@@ -12,7 +21,7 @@
       },
       "session_completed": [
         {
-          "command": ["touch", "./node_modules/foo"]
+          "command": ["bun", "./.plantir/session-completed-hook.js"]
         }
       ],
       "pre_send_message": [

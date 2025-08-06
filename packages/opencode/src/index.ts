@@ -7,6 +7,7 @@ import { RunCommand } from "./cli/cmd/run"
 import { GenerateCommand } from "./cli/cmd/generate"
 import { Log } from "./util/log"
 import { AuthCommand } from "./cli/cmd/auth"
+import { AgentCommand } from "./cli/cmd/agent"
 import { UpgradeCommand } from "./cli/cmd/upgrade"
 import { ModelsCommand } from "./cli/cmd/models"
 import { UI } from "./cli/ui"
@@ -19,7 +20,11 @@ import { DebugCommand } from "./cli/cmd/debug"
 import { StatsCommand } from "./cli/cmd/stats"
 import { McpCommand } from "./cli/cmd/mcp"
 import { SandboxCommand } from "./cli/cmd/sandbox"
-import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from "fs"
+import { chmodSync, readFileSync, rmSync } from "fs"
+import { GithubCommand } from "./cli/cmd/github"
+import { Trace } from "./trace"
+
+Trace.init()
 
 const cancel = new AbortController()
 
@@ -53,25 +58,21 @@ const argv = yargs(hideBin(process.argv))
     describe: "print logs to stderr",
     type: "boolean",
   })
-  .middleware(async () => {
-    await Log.init({ print: process.argv.includes("--print-logs") })
-
-    try {
-      const { Config } = await import("./config/config")
-      const { App } = await import("./app/app")
-
-      App.provide({ cwd: process.cwd() }, async () => {
-        const cfg = (await Config.get()) as any
-        if (cfg.log_level) {
-          Log.setLevel(cfg.log_level as Log.Level)
-        } else {
-          const defaultLevel = Installation.isDev() ? "DEBUG" : "INFO"
-          Log.setLevel(defaultLevel)
-        }
-      })
-    } catch (e) {
-      Log.Default.error("failed to load config", { error: e })
-    }
+  .option("log-level", {
+    describe: "log level",
+    type: "string",
+    choices: ["DEBUG", "INFO", "WARN", "ERROR"],
+  })
+  .middleware(async (opts) => {
+    await Log.init({
+      print: process.argv.includes("--print-logs"),
+      dev: Installation.isDev(),
+      level: (() => {
+        if (opts.logLevel) return opts.logLevel as Log.Level
+        if (Installation.isDev()) return "DEBUG"
+        return "INFO"
+      })(),
+    })
 
     Log.Default.info("opencode", {
       version: Installation.VERSION,
@@ -145,11 +146,13 @@ if (useSandbox) {
     .command(GenerateCommand)
     .command(DebugCommand)
     .command(AuthCommand)
+    .command(AgentCommand)
     .command(SandboxCommand)
     .command(UpgradeCommand)
     .command(ServeCommand)
     .command(ModelsCommand)
     .command(StatsCommand)
+    .command(GithubCommand)
     .fail((msg) => {
       if (msg.startsWith("Unknown argument") || msg.startsWith("Not enough non-option arguments")) {
         cli.showHelp("log")

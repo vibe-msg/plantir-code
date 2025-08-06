@@ -30,7 +30,23 @@ brew install sst/tap/opencode      # macOS
 paru -S opencode-bin               # Arch Linux
 ```
 
-> **Note:** Remove versions older than 0.1.x before installing
+> [!TIP]
+> Remove versions older than 0.1.x before installing.
+
+#### Installation Directory
+
+The install script respects the following priority order for the installation path:
+
+1. `$OPENCODE_INSTALL_DIR` - Custom installation directory
+2. `$XDG_BIN_DIR` - XDG Base Directory Specification compliant path
+3. `$HOME/bin` - Standard user binary directory (if exists or can be created)
+4. `$HOME/.opencode/bin` - Default fallback
+
+```bash
+# Examples
+OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
+```
 
 ### Documentation
 
@@ -38,24 +54,25 @@ For more info on how to configure opencode [**head over to our docs**](https://o
 
 ### Contributing
 
-WE DO NOT ACCEPT PRs FOR CORE FEATURES
-
 opencode is an opinionated tool so any fundamental feature needs to go through a
 design process with the core team.
 
+> [!IMPORTANT]
+> We do not accept PRs for core features.
+
 However we still merge a ton of PRs - you can contribute:
 
-- bug fixes
-- improvements to LLM performance
-- support for new providers
-- fixes for env specific quirks
-- missing standard behavior
-- documentation
+- Bug fixes
+- Improvements to LLM performance
+- Support for new providers
+- Fixes for env specific quirks
+- Missing standard behavior
+- Documentation
 
 Take a look at the git history to see what kind of PRs we end up merging.
 
-> **Note**: If you do not follow the above guidelines we might close your PR
-> that you worked really hard on.
+> [!NOTE]
+> If you do not follow the above guidelines we might close your PR.
 
 To run opencode locally you need.
 
@@ -80,7 +97,7 @@ $ bun run packages/opencode/src/index.ts
 It's very similar to Claude Code in terms of capability. Here are the key differences:
 
 - 100% open source
-- Not coupled to any provider. Although Anthropic is recommended, opencode can be used with OpenAI, Google or even local models. As models evolve the gaps between them will close and pricing will drop so being provider agnostic is important.
+- Not coupled to any provider. Although Anthropic is recommended, opencode can be used with OpenAI, Google or even local models. As models evolve the gaps between them will close and pricing will drop so being provider-agnostic is important.
 - A focus on TUI. opencode is built by neovim users and the creators of [terminal.shop](https://terminal.shop); we are going to push the limits of what's possible in the terminal.
 - A client/server architecture. This for example can allow opencode to run on your computer, while you can drive it remotely from a mobile app. Meaning that the TUI frontend is just one of the possible clients.
 
