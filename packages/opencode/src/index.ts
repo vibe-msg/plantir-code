@@ -127,12 +127,6 @@ if (useSandbox) {
       { stdio: buildStdout, shell: "/bin/bash" },
     )
     console.log(`built ${finalImageName}`)
-    if (existsSync("/workspace/final_image_uri.txt")) {
-      // The publish step only supports one image. If we build multiple, only the last one
-      // will be published. Throw an error to make this failure explicit.
-      throw new Error("CI artifact file /workspace/final_image_uri.txt already exists. Refusing to overwrite.")
-    }
-    writeFileSync("/workspace/final_image_uri.txt", finalImageName)
   }
 
   buildImage(baseImage, baseDockerfile)

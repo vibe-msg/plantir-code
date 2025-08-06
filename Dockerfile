@@ -44,7 +44,8 @@ USER node
 # install gemini-cli and clean up
 COPY packages/opencode/opencode-*.tgz /usr/local/share/npm-global/plantir-cli.tgz
 RUN cd /usr/local/temp \
-  && npx bun install -g /usr/local/share/npm-global/plantir-cli.tgz \
+  && npm install -g /usr/local/share/npm-global/plantir-cli.tgz \
+  && npm cache clean --force \
   && rm -f /usr/local/share/npm-global/plantir-cli.tgz
 
   # --registry=https://registry.npmjs.org

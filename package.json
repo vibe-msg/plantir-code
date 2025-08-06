@@ -10,6 +10,9 @@
     "stainless": "./scripts/stainless",
     "postinstall": "./scripts/hooks"
   },
+  "bin": {
+    "opencode": "./packages/opencode/bin/opencode"
+  },
   "workspaces": {
     "packages": [
       "packages/*"
