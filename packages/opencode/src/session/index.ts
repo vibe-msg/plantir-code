@@ -42,7 +42,7 @@ import { ReadTool } from "../tool/read"
 import { mergeDeep, pipe, splitWhen } from "remeda"
 import { ToolRegistry } from "../tool/registry"
 import { plantirModeMessage, preSendMessageHook, PlantirEvent } from "../plantir-extension/session"
-import { runAutoBackup } from "../util/auto-backup"
+import { runAutoBackup } from "../plantir-extension/auto-backup"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
