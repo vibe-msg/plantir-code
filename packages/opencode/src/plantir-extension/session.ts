@@ -31,6 +31,8 @@ const REQUIREMENTS_PATH = path.join(PLANTIR_DIR, "requirements.md")
 const TASKS_DIR = path.join(PLANTIR_DIR, "tasks")
 const TODO_PATH = path.join(TASKS_DIR, "todo.md")
 const LANGUAGE = 'Korean'
+const PROMPT_SUFFIX = `When the session ends, instruct the user to run a new session using the /new command in the current session and proceed to the next step.
+Please reply in ${LANGUAGE}.`
 
 export const plantirModeMessage = async ({ input }: {
   input: z.infer<typeof Session.ChatInput>
@@ -85,7 +87,7 @@ This is a quote management app developed with Flutter. It allows users to add, m
 <!-- Template End -->
 
 After creating the file, terminate the session.
-Please reply in ${LANGUAGE}.`
+${PROMPT_SUFFIX}`
     return modifiedInput
   }
 
@@ -104,7 +106,7 @@ Please reply in ${LANGUAGE}.`
 4. For EACH task in the checklist, create a corresponding markdown file in "${TASKS_DIR}/" (e.g., "${TASKS_DIR}/1-initial-setup.md").
 5. In each of these newly created task files, write a detailed execution plan for that specific task. Do not summarize; be specific and thorough. It is critical to create all task files, not just one.
 6. After creating all the necessary files, terminate the session.
-Please reply in ${LANGUAGE}.`
+${PROMPT_SUFFIX}`
     return modifiedInput
   }
 
@@ -135,7 +137,7 @@ Please read the instructions in that file carefully.
 3.  Once the task is complete, update the checklist in "${TODO_PATH}" by changing '- [ ]' to '- [x]' for the task you just finished.
 4.  If there is a next task, write detailed instructions for the next AI agent in its corresponding .md file to provide context for the next step.
 5.  Finally, terminate the session. A new agent will pick up the next task.
-Please reply in ${LANGUAGE}.`
+${PROMPT_SUFFIX}`
   return modifiedInput
 }
 
