@@ -129,9 +129,11 @@ if (useSandbox) {
     )
     console.log(`built ${finalImageName}`)
 
-    const runCommand = sandboxCommand === "podman" ? "" : `${sandboxCommand} run`
+    const runCommand = `${sandboxCommand} run`
+    // const runCommand = sandboxCommand === "podman" ? "" : `${sandboxCommand} run`
     execSync(`${runCommand} --name plantir_sandbox_${sandboxCommand} ${finalImageName}`)
-    const execCommand = sandboxCommand === "podman" ? "" : `${sandboxCommand} exec`
+    // const execCommand = sandboxCommand === "podman" ? "" : `${sandboxCommand} exec`
+    const execCommand = `${sandboxCommand} exec`
     execSync(`${execCommand} -it plantir_sandbox_${sandboxCommand} bash`)
   }
 
