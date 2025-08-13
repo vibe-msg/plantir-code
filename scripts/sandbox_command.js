@@ -13,7 +13,12 @@ const argv = yargs(hideBin(process.argv)).option("q", {
   default: false,
 }).argv
 
-let plantirSandbox = process.env["PLANTIR_SANDBOX"]
+const sandboxTypeArgv = yargs(hideBin(process.argv)).option("s", {
+  alias: "sandbox",
+  type: "string",
+}).argv
+
+let plantirSandbox = sandboxTypeArgv.sandbox || sandboxTypeArgv.s
 
 if (!plantirSandbox) {
   const userSettingsFile = join(os.homedir(), ".plantir", "settings.json")
@@ -43,10 +48,10 @@ if (!plantirSandbox) {
     }
     currentDir = parentDir
   }
-  plantirSandbox = process.env["PLANTIR_SANDBOX"]
+  plantirSandbox = "docker"
 }
 
-plantirSandbox = (plantirSandbox || "").toLowerCase()
+plantirSandbox = (plantirSandbox || "")?.toLowerCase()
 
 const commandExists = (cmd) => {
   const checkCommand = os.platform() === "win32" ? "where" : "command -v"

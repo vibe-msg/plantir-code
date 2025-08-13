@@ -80,11 +80,11 @@ const argv = yargs(hideBin(process.argv))
     })
   })
 
-const useSandbox = process.argv.includes("--sandbox") || process.argv.includes("-s")
+const useSandbox = process.argv.find((arg) => arg.includes("--sandbox") || arg.includes("-s"))
 if (useSandbox) {
   let sandboxCommand: string
   try {
-    sandboxCommand = execSync("node scripts/sandbox_command.js").toString().trim()
+    sandboxCommand = execSync(`node scripts/sandbox_command.js ${useSandbox}`).toString().trim()
   } catch {
     console.warn("ERROR: could not detect sandbox container command")
     process.exit(0)

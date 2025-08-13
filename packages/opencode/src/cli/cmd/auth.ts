@@ -285,10 +285,6 @@ export const AuthLoginCommand = cmd({
       message: "Select Sandbox",
       options: [
         {
-          label: "none",
-          value: "0",
-        },
-        {
           label: "docker",
           value: "1",
         },
