@@ -129,12 +129,19 @@ if (useSandbox) {
     )
     console.log(`built ${finalImageName}`)
 
-    const runCommand = `${sandboxCommand} run`
-    // const runCommand = sandboxCommand === "podman" ? "" : `${sandboxCommand} run`
-    execSync(`${runCommand} --name plantir_sandbox_${sandboxCommand} ${finalImageName}`)
+    console.log(`run ${imageName} ...`)
+    try {
+      const runCommand = `${sandboxCommand} run`
+      // const runCommand = sandboxCommand === "podman" ? "" : `${sandboxCommand} run`
+      execSync(`${runCommand} --name plantir_sandbox_${sandboxCommand} ${finalImageName}`, { stdio: "inherit" })
+    } catch {
+      console.log(`Already running image exists. Use existed image.`)
+    }
+
+    console.log(`execute ${imageName} ...`)
     // const execCommand = sandboxCommand === "podman" ? "" : `${sandboxCommand} exec`
     const execCommand = `${sandboxCommand} exec`
-    execSync(`${execCommand} -it plantir_sandbox_${sandboxCommand} bash`)
+    execSync(`${execCommand} -it plantir_sandbox_${sandboxCommand} opencode`, { stdio: "inherit" })
   }
 
   buildImage(baseImage, baseDockerfile)
