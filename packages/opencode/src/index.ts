@@ -141,7 +141,7 @@ if (useSandbox) {
     console.log(`execute ${imageName} ...`)
     // const execCommand = sandboxCommand === "podman" ? "" : `${sandboxCommand} exec`
     const execCommand = `${sandboxCommand} exec`
-    execSync(`${execCommand} -it plantir_sandbox_${sandboxCommand} opencode`, { stdio: "inherit" })
+    execSync(`${execCommand} -it plantir_sandbox_${sandboxCommand} opencode`, { stdio: "inherit", shell: "/bin/bash" })
   }
 
   buildImage(baseImage, baseDockerfile)
