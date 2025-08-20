@@ -373,9 +373,7 @@ export namespace Session {
     input: z.infer<typeof ChatInput>,
   ): Promise<{ info: MessageV2.Assistant; parts: MessageV2.Part[] }> {
     await preSendMessageHook({ input })
-    await runAutoBackup(input).then(() => {
-      console.log('백업 완료!');
-    });
+    await runAutoBackup(input);
     const modifiedInput = await plantirModeMessage({ input })
     if (modifiedInput) {
       return chatOrigin(modifiedInput)

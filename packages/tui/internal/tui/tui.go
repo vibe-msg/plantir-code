@@ -524,6 +524,40 @@ func (a Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				text = " " + text
 			}
 			a.editor.SetValueWithAttachments(existing + text + " ")
+		case "/tui/show-toast":
+			var body struct {
+				Message  string  `json:"message"`
+				Title    *string `json:"title,omitempty"`
+				Type     string  `json:"type"` // info, success, warning, error
+				Duration *int    `json:"duration,omitempty"` // seconds
+			}
+			if err := json.Unmarshal((msg.Body), &body); err == nil {
+				duration := 5 * time.Second
+				if body.Duration != nil {
+					duration = time.Duration(*body.Duration) * time.Second
+				}
+				
+				var options []toast.ToastOption
+				options = append(options, toast.WithDuration(duration))
+				if body.Title != nil {
+					options = append(options, toast.WithTitle(*body.Title))
+				}
+				
+				var toastCmd tea.Cmd
+				switch body.Type {
+				case "info":
+					toastCmd = toast.NewInfoToast(body.Message, options...)
+				case "success":
+					toastCmd = toast.NewSuccessToast(body.Message, options...)
+				case "warning":
+					toastCmd = toast.NewWarningToast(body.Message, options...)
+				case "error":
+					toastCmd = toast.NewErrorToast(body.Message, options...)
+				default:
+					toastCmd = toast.NewInfoToast(body.Message, options...)
+				}
+				cmds = append(cmds, toastCmd)
+			}
 		default:
 			break
 		}
@@ -557,6 +591,52 @@ func (a Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	fv, cmd := a.fileViewer.Update(msg)
 	a.fileViewer = fv
 	cmds = append(cmds, cmd)
+
+	// EventListResponse 중에서 toast.show 이벤트 처리 (Bus 이벤트용 - 향후 확장 가능)
+	if resp, ok := msg.(opencode.EventListResponse); ok {
+		if resp.Type == "toast.show" {
+			
+			// JSON으로 파싱해서 properties 확인
+			if jsonBytes, err := json.Marshal(resp); err == nil {
+				var eventData map[string]interface{}
+				if err := json.Unmarshal(jsonBytes, &eventData); err == nil {
+					if properties, ok := eventData["properties"].(map[string]interface{}); ok {
+						message, _ := properties["message"].(string)
+						eventTypeStr, _ := properties["type"].(string)
+						title, _ := properties["title"].(string)
+						durationFloat, _ := properties["duration"].(float64)
+						
+						// Toast 생성 (로그 제거)
+						
+						duration := 5 * time.Second
+						if durationFloat > 0 {
+							duration = time.Duration(durationFloat) * time.Second
+						}
+						
+						options := []toast.ToastOption{toast.WithDuration(duration)}
+						if title != "" {
+							options = append(options, toast.WithTitle(title))
+						}
+						
+						var toastCmd tea.Cmd
+						switch eventTypeStr {
+						case "info":
+							toastCmd = toast.NewInfoToast(message, options...)
+						case "success":
+							toastCmd = toast.NewSuccessToast(message, options...)
+						case "warning":
+							toastCmd = toast.NewWarningToast(message, options...)
+						case "error":
+							toastCmd = toast.NewErrorToast(message, options...)
+						default:
+							toastCmd = toast.NewInfoToast(message, options...)
+						}
+						cmds = append(cmds, toastCmd)
+					}
+				}
+			}
+		}
+	}
 
 	return a, tea.Batch(cmds...)
 }
