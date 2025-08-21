@@ -16,7 +16,12 @@ export namespace Auth {
     key: z.string(),
   })
 
-  export const Info = z.discriminatedUnion("type", [Oauth, Api])
+  export const Sandbox = z.object({
+    type: z.literal("sandbox"),
+    key: z.string(),
+  })
+
+  export const Info = z.discriminatedUnion("type", [Oauth, Api, Sandbox])
   export type Info = z.infer<typeof Info>
 
   const filepath = path.join(Global.Path.data, "auth.json")

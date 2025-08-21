@@ -10,6 +10,9 @@
     "stainless": "./scripts/stainless",
     "postinstall": "./scripts/hooks"
   },
+  "bin": {
+    "opencode": "./packages/opencode/bin/opencode"
+  },
   "workspaces": {
     "packages": [
       "packages/*"
@@ -22,8 +25,11 @@
     }
   },
   "devDependencies": {
+    "@types/shell-quote": "1.7.5",
+    "dotenv": "17.2.0",
     "prettier": "3.5.3",
-    "sst": "3.17.8"
+    "sst": "3.17.8",
+    "strip-json-comments": "5.0.2"
   },
   "repository": {
     "type": "git",
@@ -39,5 +45,7 @@
     "protobufjs",
     "sharp"
   ],
-  "patchedDependencies": {}
+  "dependencies": {
+    "shell-quote": "1.8.3"
+  }
 }

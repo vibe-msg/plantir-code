@@ -281,6 +281,27 @@ export const AuthLoginCommand = cmd({
       key,
     })
 
+    const sandbox = await prompts.select({
+      message: "Select Sandbox",
+      options: [
+        {
+          label: "docker",
+          value: "1",
+        },
+        {
+          label: "podman",
+          value: "2",
+        },
+      ],
+    })
+
+    if (prompts.isCancel(sandbox)) throw new UI.CancelledError()
+
+    await Auth.set(sandbox, {
+      type: "sandbox",
+      key: "sandbox",
+    })
+
     prompts.outro("Done")
   },
 })
