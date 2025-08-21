@@ -806,6 +806,32 @@ export namespace Server {
         }),
         async (c) => c.json(await callTui(c)),
       )
+      .post(
+        "/tui/show-toast",
+        describeRoute({
+          description: "Show toast notification in TUI",
+          responses: {
+            200: {
+              description: "Toast notification shown successfully",
+              content: {
+                "application/json": {
+                  schema: resolver(z.boolean()),
+                },
+              },
+            },
+          },
+        }),
+        zValidator(
+          "json",
+          z.object({
+            message: z.string(),
+            type: z.enum(["info", "success", "warning", "error"]).optional().default("info"),
+            title: z.string().optional(),
+            duration: z.number().optional(),
+          }),
+        ),
+        async (c) => c.json(await callTui(c)),
+      )
       .route("/tui/control", TuiRoute)
 
     return result

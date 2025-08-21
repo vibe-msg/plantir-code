@@ -13,6 +13,7 @@ import { Log } from "../../util/log"
 import { FileWatcher } from "../../file/watch"
 import { Mode } from "../../session/mode"
 import { Ide } from "../../ide"
+import { ServerGlobals } from "../../server/globals"
 
 export const TuiCommand = cmd({
   command: "$0 [project]",
@@ -68,6 +69,9 @@ export const TuiCommand = cmd({
           port: args.port,
           hostname: args.hostname,
         })
+        
+        // 서버 URL을 전역적으로 저장
+        ServerGlobals.setServerUrl(server.url.toString())
 
         let cmd = ["go", "run", "./main.go"]
         let cwd = Bun.fileURLToPath(new URL("../../../../tui/cmd/opencode", import.meta.url))
